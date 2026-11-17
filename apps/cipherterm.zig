@@ -611,7 +611,10 @@ pub const App = struct {
         const t0 = pty_mod.nowNs();
         self.drainSocket();
         if (self.no_panes) rt.requestQuit();
-        if (rt.atlas == null) return;
+        if (rt.atlas == null) {
+            self.noteFrame(t0);
+            return;
+        }
         const atlas = &rt.atlas.?;
         const cm = render.cellMetrics(atlas);
         const theme = render.THEMES[self.theme_idx % render.THEMES.len];
@@ -701,14 +704,18 @@ pub const App = struct {
         }
         n = try render.renderGridT(atlas, &self.grid, self.quads, n, 0, grid_y, cm.w, cm.h, theme);
         rt.extra_quads = self.quads[0..n];
-        // bench
+        self.noteFrame(t0);
+    }
+
+    /// Frame accounting for both render paths (GPU and software-shm).
+    fn noteFrame(self: *App, t0: i64) void {
         const dt: u64 = @intCast(pty_mod.nowNs() - t0);
         self.frames += 1;
         self.frame_ns += dt;
         self.win_frames += 1;
         self.win_ns += dt;
         if (self.win_frames >= 120) {
-            std.debug.print("CIPHERTERM_BENCH frames={d} avg_onframe_ms={d:.3} quads={d} rss_kb={d} pane={d} alive={} bytes_in={d}\n", .{ self.frames, @as(f64, @floatFromInt(self.win_ns)) / @as(f64, @floatFromInt(self.win_frames)) / 1e6, n, rssKb(), self.pane, self.pane_alive, self.bytes_in });
+            std.debug.print("CIPHERTERM_BENCH frames={d} avg_onframe_ms={d:.3} rss_kb={d} bytes_in={d}\n", .{ self.frames, @as(f64, @floatFromInt(self.win_ns)) / @as(f64, @floatFromInt(self.win_frames)) / 1e6, rssKb(), self.bytes_in });
             self.win_frames = 0;
             self.win_ns = 0;
         }
