@@ -1,0 +1,2 @@
+cipher: render path = vulkan-gpu-ui
+cipher: WAYLAND_PROTOCOL_OK frames=120

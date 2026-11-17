@@ -1,0 +1,9 @@
+
+(bench_gtk:477363): Gdk-WARNING **: 19:59:00.543: vkQueuePresentKHR(): A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully. (VK_SUBOPTIMAL_KHR) (1000001003)
+
+(bench_gtk:477363): Gdk-WARNING **: 19:59:00.550: vkQueuePresentKHR(): A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully. (VK_SUBOPTIMAL_KHR) (1000001003)
+
+(bench_gtk:477363): Gdk-WARNING **: 19:59:00.567: vkQueuePresentKHR(): A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully. (VK_SUBOPTIMAL_KHR) (1000001003)
+
+(bench_gtk:477363): Gdk-WARNING **: 19:59:00.582: vkAcquireNextImageKHR(): A swapchain no longer matches the surface properties exactly, but can still be used to present to the surface successfully. (VK_SUBOPTIMAL_KHR) (1000001003)
+GTK_BENCH frames=120 total_ms=2126.5 rss_kb=299684
