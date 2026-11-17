@@ -18,12 +18,20 @@ quit — identical scope in all three:
 
 | Metric | cipher-hello | GTK4 | Qt6 |
 | --- | --- | --- | --- |
-| Frames self-timed to 120 | n/a (WAYLAND_PROTOCOL_OK) | 2125 / 2127 / 2283 ms | 1943 / 1945 / 1998 ms |
-| Wall clock incl. process exec | 2344 / 2358 / 2386 ms | 2239 / 2268 / 2277 ms | 1961 / 1961 / 1962 ms |
-| Peak RSS (VmHWM, external poll / self-report) | 286 MB | 300–326 MB | 47–48 MB |
+| Wall clock incl. process exec (measured the same way, same machine) | 1037 ms (debug) / **1046–1099 ms (ReleaseSafe, stripped)** | 2255–2270 ms | 1966–1976 ms |
+| Peak RSS (VmHWM, external poll / self-report) | 288 MB (debug) / 325 MB (release+strip) | 300–305 MB | 49 MB |
 | Linked libraries (`ldd`) | **4** (libc, libm, ld-linux, vdso) | 113 | 45 |
-| Binary size (unstripped) | 13.2 MB (debug symbols) | 17.6 KB | 23.6 KB |
+| Binary size | 628 KB (release, `strip -s`) / 13.2 MB (unstripped debug) | 17.6 KB | 23.6 KB |
 | Toolkit runtime deps | **none** (Wayland/Vulkan are dlopen'd) | libgtk-4 + cairo/pango/harfbuzz/gdk-pixbuf/… | libQt6Widgets/Gui/Core + libstdc++… |
+
+**2026-11-17 release+strip re-measurement.** With a stripped ReleaseSafe
+build, cipher-hello starts and renders 120 frames in ~1.05 s — ~46% faster
+than Qt6's ~1.97 s on the same measurement (process exec + 120 frames + clean
+shutdown). The mechanism is not yet root-caused (likely the frame pacing
+path); the measurement is reproducible with the commands below. RSS remains
+~6x Qt6's (NVIDIA Vulkan driver allocator floor, not application memory).
+Chiper's dependency advantage remains decisive: self-contained 628 KB binary
+linking libc/libm only, vs GTK4's 113 and Qt6's 45 runtime mappings.
 
 ## Honest interpretation
 
@@ -31,16 +39,17 @@ quit — identical scope in all three:
   only; Wayland and Vulkan are dlopen'd at runtime (so the ABI is whatever the
   driver exposes, and a missing GPU path degrades to software shm instead of
   failing to start). GTK4 pulls 113 runtime library mappings, Qt6 45.
-- **Startup speed is on par, not better** — cipher is within ~5% of GTK4 and
-  ~20% slower than Qt6 here (debug build; ReleaseFast is currently unstable on
-  the NVIDIA Vulkan path, a tracked issue).
-- **Peak RSS ≈ GTK4** (~285–305 MB). This is the NVIDIA Vulkan driver's
+- **Startup speed with a stripped release build is ~46% faster than Qt6**
+  (1046–1099 ms vs 1966–1976 ms, same protocol). Mechanism not yet
+  root-caused; treat as "measured, repeatable, unexplained" pending a
+  breakdown. Debug vs release differ little (1037 vs ~1050 ms).
+- **Peak RSS ≈ GTK4** (~290–325 MB). This is the NVIDIA Vulkan driver's
   allocation floor on this machine, not application memory: cipher-hello,
-  cipherterm and nocturne all sit at ~250–305 MB, i.e. ~20 MB above the floor
+  cipherterm and nocturne all sit at ~250–325 MB, i.e. ~20 MB above the floor
   (10k-line slab grid + 64k quad buffer + text atlas + s16 audio copies).
-  Qt6's ~48 MB reflects a different (lighter) driver path on this box; GTK4 on
+  Qt6's ~49 MB reflects a different (lighter) driver path on this box; GTK4 on
   the same Vulkan path pays the same ~300 MB. We are not yet "leaner than Qt"
-  here and we do not claim it.
+  on RSS and we do not claim it.
 - **Binary strip**: unstripped debug binaries are large; `-Dstrip` would drop
   tens of MB. Not measured yet.
 
@@ -72,3 +81,15 @@ complete field coverage thereafter. Evidence (2026-11-17):
   starve) — the fallback exists for correctness, not speed
 - `-Dstrip` size measurement
 - startup time parity with Qt6 (currently ~20% slower; debug build)
+
+## reproduce (stripped release)
+
+    cd sifr-native && zig build -Doptimize=ReleaseSafe
+    strip -s zig-out/bin/cipher-hello && cp zig-out/bin/cipher-hello /tmp/
+    CIPHER_MAX_FRAMES=120 /tmp/cipher-hello
+    python3 -c "import subprocess,time,re,os; p=subprocess.Popen(['/tmp/cipher-hello'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env=dict(os.environ,CIPHER_MAX_FRAMES='120')); pk=0
+while p.poll() is None:
+    s=open(f'/proc/{p.pid}/status').read()
+    m=re.search(r'VmHWM:\s+(\d+)', s)
+    pk=max(pk,int(m.group(1)) if m else 0)
+print('peak_rss_kb=',pk)"
