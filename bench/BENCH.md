@@ -24,6 +24,18 @@ quit — identical scope in all three:
 | Binary size | 628 KB (release, `strip -s`) / 13.2 MB (unstripped debug) | 17.6 KB | 23.6 KB |
 | Toolkit runtime deps | **none** (Wayland/Vulkan are dlopen'd) | libgtk-4 + cairo/pango/harfbuzz/gdk-pixbuf/… | libQt6Widgets/Gui/Core + libstdc++… |
 
+**2026-11-18 software-shm path re-measurement.** With the new CPU renderer
+(`CIPHER_FORCE_SOFTWARE=1`, no Vulkan device at all), a stripped ReleaseSafe
+cipher-hello starts, renders 120 frames and exits in **0.853–0.856 s** with
+**peak RSS 23.4 MB** (ru_maxrss of the child) — ~15–25% *faster* startup than
+the GPU path on this machine because no device/swapchain/pipeline creation is
+needed, and roughly **12x leaner** than the Vulkan path's ~290–325 MB. Both
+modes dlopen only libc/libm/ld-linux/vdso for the app itself (software mode
+needs nothing else at all). Reproduce:
+`CIPHER_FORCE_SOFTWARE=1 CIPHER_MAX_FRAMES=120 ./cipher-hello-strip`.
+This is a software rasterizer, not a GPU driver claim; it is the fallback
+path, now with full UI parity (tab chrome, labels, buttons, glyphs).
+
 **2026-11-17 release+strip re-measurement.** With a stripped ReleaseSafe
 build, cipher-hello starts and renders 120 frames in ~1.05 s — ~46% faster
 than Qt6's ~1.97 s on the same measurement (process exec + 120 frames + clean
