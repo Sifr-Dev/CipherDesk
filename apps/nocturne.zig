@@ -69,6 +69,7 @@ fn scanLibrary(alloc: std.mem.Allocator, dir_path: []const u8) ![]TrackInfo {
 const Shared = struct {
     mutex: std.atomic.Mutex = .unlocked,
     playing: bool = true,
+    volume: f32 = 0.8,
     cur_idx: usize = 0,
     /// position in interleaved s16 frames of the whole *mix* for the current pair
     frames_played: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
@@ -248,6 +249,7 @@ pub const App = struct {
                             }
                         }
                     }
+                    s *= @as(f64, @floatFromInt(@as(i64, @intFromFloat(self.shared.volume * 100)))) / 100.0;
                     const q: i16 = @intFromFloat(@max(-32768.0, @min(32767.0, s)));
                     const o: usize = @intCast((i * ch + c) * 2);
                     mixbuf[o] = @truncate(@as(u16, @bitCast(q)));
@@ -374,6 +376,13 @@ pub const App = struct {
             self.shared.playing = !self.shared.playing;
             self.shared.mutex.unlock();
         }
+        try u.label("volume", cipher.ui.COLOR_TEXT_DIM);
+        var vol_slider: f32 = self.shared.volume * 10.0;
+        try cipher.widgets.slider(u, 560, 0, 10, &vol_slider);
+        self.shared.volume = vol_slider / 10.0;
+        var vbuf: [32]u8 = undefined;
+        const vs = std.fmt.bufPrint(&vbuf, "{d:.0}%", .{self.shared.volume * 100.0}) catch "";
+        try u.label(vs, cipher.ui.COLOR_TEXT_DIM);
         try u.label("crossfade", cipher.ui.COLOR_TEXT_DIM);
         try cipher.widgets.slider(u, 560, 0, 10, &self.crossfade_s);
         var cbuf: [32]u8 = undefined;
@@ -446,11 +455,34 @@ pub fn main(init: std.process.Init.Minimal) !void {
         }
     }
 
-    const tracks = scanLibrary(alloc, lib_dir) catch |e| {
-        std.debug.print("NOCTURNE_LIB_ERROR dir={s} err={s}\n", .{ lib_dir, @errorName(e) });
-        return e;
-    };
-    std.debug.print("NOCTURNE_LIB dir={s} tracks={d}\n", .{ lib_dir, tracks.len });
+    var tracks: []TrackInfo = undefined;
+    const is_playlist = std.mem.endsWith(u8, lib_dir, ".m3u") or std.mem.endsWith(u8, lib_dir, ".m3u8");
+    if (is_playlist) {
+        const text = audio.wav.readFileAll(alloc, lib_dir, 1 << 20) catch |e| {
+            std.debug.print("NOCTURNE_PLAYLIST_ERROR path={s} err={s}\n", .{ lib_dir, @errorName(e) });
+            return e;
+        };
+        const base = std.fs.path.dirname(lib_dir) orelse ".";
+        const entries = audio.playlist.parse(alloc, text, base) catch |e| {
+            std.debug.print("NOCTURNE_PLAYLIST_ERROR path={s} err={s}\n", .{ lib_dir, @errorName(e) });
+            return e;
+        };
+        const out = try alloc.alloc(TrackInfo, entries.len);
+        for (entries, 0..) |e, j| {
+            out[j] = .{
+                .path = e.path,
+                .display = e.title orelse std.fs.path.basename(e.path),
+            };
+        }
+        tracks = out;
+        std.debug.print("NOCTURNE_PLAYLIST path={s} entries={d}\n", .{ lib_dir, tracks.len });
+    } else {
+        tracks = scanLibrary(alloc, lib_dir) catch |e| {
+            std.debug.print("NOCTURNE_LIB_ERROR dir={s} err={s}\n", .{ lib_dir, @errorName(e) });
+            return e;
+        };
+        std.debug.print("NOCTURNE_LIB dir={s} tracks={d}\n", .{ lib_dir, tracks.len });
+    }
     if (tracks.len == 0) {
         std.debug.print("NOCTURNE_EMPTY dir={s}\n", .{lib_dir});
         return;
