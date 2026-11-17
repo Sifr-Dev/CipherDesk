@@ -51,10 +51,24 @@ quit — identical scope in all three:
     CIPHER_MAX_FRAMES=120 ../../sifr-native/zig-out/bin/cipher-hello
     ./bench_gtk && ./bench_qt
 
+## Release-mode stability (fixed 2026-11-17, verified)
+
+Root cause of the ReleaseFast segfaults: `Runtime`/`GpuText`/`FramePipeline`
+were built from `undefined` bases — fields not covered by their literal/init
+code contained stack garbage, and the GPU block sometimes failed outright
+("GpuText.init: NoSuitableMemoryType" — DEVICE_LOCAL image reqs read from a
+garbage `atlas_image` handle) or corrupted the teardown allocator
+(`Ui.deinit` freeing a garbage vtable). Fixed by zero-initializing the three
+bases (`core/types.zig: zeroed`, `gpu/vulkan/zero.zig: zeroed`) and keeping
+complete field coverage thereafter. Evidence (2026-11-17):
+
+- ReleaseFast: 10/10 consecutive `cipher-hello` runs `vulkan-gpu-ui`, exit 0
+- ReleaseSafe: 3/3, Debug: exit 0, `zig build test` exit 0 (cached)
+- Debug/Safe/ReleaseFast all render `WAYLAND_PROTOCOL_OK` frames and complete
+
 ## What would make Cipher strictly faster/leaner (tracked, not done)
 
-- ReleaseFast Vulkan path stability on NVIDIA (currently segfaults; debug is
-  the verified path)
 - software-shm frame present (onFrame never runs there, so benchmarks/apps
-  starve)
+  starve) — the fallback exists for correctness, not speed
 - `-Dstrip` size measurement
+- startup time parity with Qt6 (currently ~20% slower; debug build)
