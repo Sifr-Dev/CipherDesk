@@ -499,6 +499,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     try runtime.runWith(App, &app, .{
         .title = "nocturne",
         .app_id = "nocturne",
+        // Best-effort fallbacks (silently skipped if the font is absent).
+        .fallback_font_paths = &.{ "/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuMathTeXGyre.ttf" },
         .ui_px = 15,
         .width = 1280,
         .height = 760,

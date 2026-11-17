@@ -822,6 +822,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
         .title = "cipherterm",
         .app_id = "cipherterm",
         .font_path = pickMonoFont(),
+        // Best-effort fallbacks (silently skipped if the font is absent):
+        // DejaVu covers arrows/math/misc symbols the mono font lacks.
+        .fallback_font_paths = &.{ "/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuMathTeXGyre.ttf" },
         .ui_px = 18,
         .width = 1120,
         .height = 700,
