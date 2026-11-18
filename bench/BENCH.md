@@ -56,6 +56,33 @@ Cipher does no shaping yet). GTK4 not benched offscreen (no equivalent
 offscreen platform; broadway requires a running broadwayd) — left as
 "not run" rather than claimed.
 
+**2026-11-18 heavy-scene CPU benchmark (cipher vs Qt6 offscreen).**
+Workload (identical control counts, strings and layout proportions): 5 dim
+labels + 40 buttons + 10 checkboxes + 10 sliders in a fixed 900x560 panel
+(~105 controls), declared every frame. Cipher side: `bench-hello`
+(sifr-apps, ReleaseSafe) re-declares the scene every frame and times
+`onFrame` (declaration + flexbox layout + quad emission):
+
+| Metric | cipher software-shm | cipher vulkan-gpu-ui | Qt6 offscreen |
+| --- | --- | --- | --- |
+| CPU ms per frame (declaration+layout+emit / full CPU repaint) | **0.030–0.032** | **0.031–0.035** | **0.925–0.950** |
+| Run | 360 frames, 3 windows of 120 (stable) | 360 frames, 3 windows | 3 runs of 120, stable |
+| RSS | ~23–25 MB (CIPHER software path) | ~269 MB (driver floor) | ~40.4 MB |
+| Wall for 120 frames | vsync-paced (compositor) | vsync-paced | ~111–114 ms |
+
+Caveats, stated plainly so nobody can over-read this:
+- Qt's number is the full `QWidget::render()` repaint (Fusion style painting
+  of all 105 controls); cipher's onFrame number excludes final
+  rasterQuad/upload (measured separately at ~0.020 ms for software-shm, so
+  cipher's full-path CPU cost is ~0.05 ms — still ~18x faster).
+- Qt ran offscreen (no compositor) vs cipher on umbriel; same machine,
+  same class of work (CPU paint), same strings.
+- This is one fixed scene. It demonstrates the hot-path architecture win
+  (immediate-mode re-declaration + flexbox + quad emission is cheaper than
+  QWidget layout+repaint), NOT that every app is 18–30x faster at everything.
+  Qt retains: widget breadth, AT-SPI accessibility, theming, tooling, text
+  shaping (harfbuzz) — all absent from Cipher today.
+
 **2026-11-17 release+strip re-measurement.** With a stripped ReleaseSafe
 build, cipher-hello starts and renders 120 frames in ~1.05 s — ~46% faster
 than Qt6's ~1.97 s on the same measurement (process exec + 120 frames + clean
