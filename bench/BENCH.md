@@ -36,6 +36,26 @@ needs nothing else at all). Reproduce:
 This is a software rasterizer, not a GPU driver claim; it is the fallback
 path, now with full UI parity (tab chrome, labels, buttons, glyphs).
 
+**2026-11-18 Qt6 offscreen-platform head-to-head (software-on-software).**
+`bench_qt -platform offscreen` (window shown into Qt's offscreen plugin, no
+compositor, same machine): 120 frames in **1936–1966 ms (timer-bound** — the
+bench runs 120 x 16 ms timer ticks, so wall time measures the timer, not
+render throughput), **peak RSS 38.6–39.0 MB**, **45 library mappings** (ldd:
+libQt6Widgets/Gui/Core/DBus, harfbuzz, freetype, fontconfig, ICU×3, glib,
+xkbcommon, libstdc++, …). Against it, cipher-hello with
+`CIPHER_FORCE_SOFTWARE=1`: **0.853–0.856 s wall** (whole exec protocol incl.
+120 frames via CIPHER_MAX_FRAMES=120), **23.4 MB peak RSS**, **3 mappings**
+(vdso, libc, ld-linux; Wayland/Vulkan dlopen'ed on demand — absent
+entirely in software mode), 628 KB stripped. Honest reading: Qt-offscreen is
+the only like-for-like (both render without a GPU) and Cipher still wins
+footprint and startup by large margins; the wall-clock gap of Qt vs Cipher
+is mostly the timer constant, so **RSS and dependency count are the load-
+bearing wins** here. Qt remains far broader: widget set, AT-SPI
+accessibility, theming, tooling, fonts/shaping (harfbuzz wired through —
+Cipher does no shaping yet). GTK4 not benched offscreen (no equivalent
+offscreen platform; broadway requires a running broadwayd) — left as
+"not run" rather than claimed.
+
 **2026-11-17 release+strip re-measurement.** With a stripped ReleaseSafe
 build, cipher-hello starts and renders 120 frames in ~1.05 s — ~46% faster
 than Qt6's ~1.97 s on the same measurement (process exec + 120 frames + clean
