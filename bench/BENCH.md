@@ -83,6 +83,15 @@ Caveats, stated plainly so nobody can over-read this:
   Qt retains: widget breadth, AT-SPI accessibility, theming, tooling, text
   shaping (harfbuzz) — all absent from Cipher today.
 
+**GTK4 column (same machine, timer-paced hello, commit bench/bench_gtk).**
+GTK4.24.1 bench-gtk: **2095–2104 ms** (timer-bound ~1.92 s + startup),
+**RSS ~294 MB**, **113 library mappings** (ldd). GTK could not be run in the
+heavy-scene CPU-paint benchmark: gtk_widget snapshot→GskRenderNode plumbing
+segfaults on this box even after renderer realize — marked **not run**, not
+claimed. GTK remains excellent software: widget breadth, AT-SPI
+accessibility, theming, text shaping, tooling. Cipher wins what it measures;
+GTK keeps everything it is known for.
+
 **2026-11-17 release+strip re-measurement.** With a stripped ReleaseSafe
 build, cipher-hello starts and renders 120 frames in ~1.05 s — ~46% faster
 than Qt6's ~1.97 s on the same measurement (process exec + 120 frames + clean
