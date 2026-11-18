@@ -4,7 +4,7 @@
 // app linking against a framework library.
 const std = @import("std");
 
-const FW = "../sifr-native/src/"; // framework checkout (path dependency)
+const FW = "../sifr-native/src/"; // framework checkout (path dependency); run zig from repo root
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
 
     // Janus — the Cipher GPU-native terminal (panes, themes, status bar).
     const janus_mod = b.createModule(.{
-        .root_source_file = b.path("apps/janus.zig"),
+        .root_source_file = b.path("apps/janus/main.zig"),
         .target = target,
         .optimize = optimize,
     });
