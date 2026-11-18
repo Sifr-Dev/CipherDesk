@@ -17,7 +17,7 @@ jobs:
       - name: Checkout framework (path dependency)
         uses: actions/checkout@v4
         with:
-          repository: Sifr-dev/sifr-native
+          repository: Sifr-Dev/sifr-native
           path: sifr-native
 
       - name: Install fonts used by the text engine
