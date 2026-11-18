@@ -59,6 +59,17 @@ pub fn build(b: *std.Build) void {
     b.step("run-cipherterm", "Run the cipherterm GPU terminal (args after --)").dependOn(&run_ct.step);
 
     // nocturne — offline music player (FLAC, lyrics, crossfade, playlists).
+    // bench-hello — heavy-scene runtime-performance benchmark (not shipped UI).
+    const bh_mod = b.createModule(.{
+        .root_source_file = b.path("apps/bench_hello.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    bh_mod.link_libc = true;
+    bh_mod.addImport("cipher", cipher_mod);
+    const bh = b.addExecutable(.{ .name = "bench-hello", .root_module = bh_mod });
+    b.installArtifact(bh);
+
     const noc_mod = b.createModule(.{
         .root_source_file = b.path("apps/nocturne.zig"),
         .target = target,
