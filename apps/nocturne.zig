@@ -383,6 +383,25 @@ pub const App = struct {
         var vbuf: [32]u8 = undefined;
         const vs = std.fmt.bufPrint(&vbuf, "{d:.0}%", .{self.shared.volume * 100.0}) catch "";
         try u.label(vs, cipher.ui.COLOR_TEXT_DIM);
+        // context menu (declared after everything else so it paints on top)
+        const menu_anchor = cipher.layout.Rect{ .x = 0, .y = 0, .w = @floatFromInt(rt.width), .h = @floatFromInt(rt.height) };
+        const menu_items = [_]cipher.widgets.MenuItem{
+            .{ .label = if (self.shared.playing) "pause" else "play" },
+            .{ .label = "next track" },
+            .{ .label = "previous track" },
+        };
+        if (try cipher.widgets.contextMenu(u, menu_anchor, &menu_items)) |choice| {
+            switch (choice) {
+                0 => {
+                    lockSpin(&self.shared.mutex);
+                    self.shared.playing = !self.shared.playing;
+                    self.shared.mutex.unlock();
+                },
+                1 => self.switchTo((self.cur_idx + 1) % self.tracks.len),
+                2 => self.switchTo((self.cur_idx + self.tracks.len - 1) % self.tracks.len),
+                else => {},
+            }
+        }
         try u.label("crossfade", cipher.ui.COLOR_TEXT_DIM);
         try cipher.widgets.slider(u, 560, 0, 10, &self.crossfade_s);
         var cbuf: [32]u8 = undefined;

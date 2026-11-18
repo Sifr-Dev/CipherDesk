@@ -437,6 +437,41 @@ pub const App = struct {
         return out.toOwnedSlice(self.alloc);
     }
 
+    /// Shared paste path (file drop = newline-separated paths; text paste as-is).
+    fn handlePasteText(self: *App, rt: *runtime.Runtime, text: []const u8) void {
+        _ = rt;
+        var all_paths = text.len > 0 and text[0] == '/';
+        var joined = std.ArrayList(u8).empty;
+        defer joined.deinit(self.alloc);
+        if (all_paths) {
+            var it = std.mem.splitScalar(u8, text, '\n');
+            var first = true;
+            while (it.next()) |ln| {
+                const t = std.mem.trim(u8, ln, " \t\r");
+                if (t.len == 0) continue;
+                if (t[0] != '/') {
+                    all_paths = false;
+                    break;
+                }
+                if (!first) joined.append(self.alloc, ' ') catch {};
+                joined.appendSlice(self.alloc, t) catch {};
+                first = false;
+            }
+        }
+        if (all_paths and joined.items.len > 0) {
+            self.sendData(joined.items);
+        } else if (self.grid.bracketed_paste) {
+            var buf = std.ArrayList(u8).empty;
+            defer buf.deinit(self.alloc);
+            buf.appendSlice(self.alloc, "\x1b[200~") catch return;
+            buf.appendSlice(self.alloc, text) catch return;
+            buf.appendSlice(self.alloc, "\x1b[201~") catch return;
+            self.sendData(buf.items);
+        } else {
+            self.sendData(text);
+        }
+    }
+
     fn copySelection(self: *App, rt: *runtime.Runtime) void {
         const text = self.selectionText() catch return;
         defer self.alloc.free(text);
@@ -569,39 +604,7 @@ pub const App = struct {
                     self.attachTo(self.pane);
                 }
             },
-            .paste => |text| {
-                // file drop arrives as newline-separated paths; text paste as-is
-                var all_paths = text.len > 0 and text[0] == '/';
-                var joined = std.ArrayList(u8).empty;
-                defer joined.deinit(self.alloc);
-                if (all_paths) {
-                    var it = std.mem.splitScalar(u8, text, '\n');
-                    var first = true;
-                    while (it.next()) |ln| {
-                        const t = std.mem.trim(u8, ln, " \t\r");
-                        if (t.len == 0) continue;
-                        if (t[0] != '/') {
-                            all_paths = false;
-                            break;
-                        }
-                        if (!first) joined.append(self.alloc, ' ') catch {};
-                        joined.appendSlice(self.alloc, t) catch {};
-                        first = false;
-                    }
-                }
-                if (all_paths and joined.items.len > 0) {
-                    self.sendData(joined.items);
-                } else if (self.grid.bracketed_paste) {
-                    var buf = std.ArrayList(u8).empty;
-                    defer buf.deinit(self.alloc);
-                    buf.appendSlice(self.alloc, "\x1b[200~") catch return;
-                    buf.appendSlice(self.alloc, text) catch return;
-                    buf.appendSlice(self.alloc, "\x1b[201~") catch return;
-                    self.sendData(buf.items);
-                } else {
-                    self.sendData(text);
-                }
-            },
+            .paste => |text| self.handlePasteText(rt, text),
             .close => rt.requestQuit(),
             .focus => {},
         }
@@ -661,6 +664,23 @@ pub const App = struct {
             const ss = std.fmt.bufPrint(&sbuf, "rss {d} MB  in {d} KB  panes {d}", .{ rssKb() / 1024, self.bytes_in / 1024, self.panes.items.len }) catch "rss";
             try u.label(ss, term.ui.COLOR_TEXT_DIM);
             u.endPanel();
+            // context menu: right-click anywhere; declared last so it paints on top
+            const menu_anchor = term.layout.Rect{ .x = 0, .y = 0, .w = @floatFromInt(rt.width), .h = @floatFromInt(rt.height) };
+            const items = [_]term.widgets.MenuItem{
+                .{ .label = "Copy" },
+                .{ .label = "Paste" },
+                .{ .label = "Split pane" },
+                .{ .label = "Close pane" },
+            };
+            if (try term.widgets.contextMenu(u, menu_anchor, &items)) |choice| {
+                switch (choice) {
+                    0 => self.copySelection(rt),
+                    1 => if (rt.clipboard_text) |t| self.handlePasteText(rt, t),
+                    2 => self.doSplit(),
+                    3 => self.doClosePane(),
+                    else => {},
+                }
+            }
         }
         // selection highlight (under the glyphs)
         if (self.sel_active) {
