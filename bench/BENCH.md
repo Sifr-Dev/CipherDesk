@@ -63,12 +63,20 @@ labels + 40 buttons + 10 checkboxes + 10 sliders in a fixed 900x560 panel
 (sifr-apps, ReleaseSafe) re-declares the scene every frame and times
 `onFrame` (declaration + flexbox layout + quad emission):
 
-| Metric | cipher software-shm | cipher vulkan-gpu-ui | Qt6 offscreen |
-| --- | --- | --- | --- |
-| CPU ms per frame (declaration+layout+emit / full CPU repaint) | **0.030–0.032** | **0.031–0.035** | **0.925–0.950** |
-| Run | 360 frames, 3 windows of 120 (stable) | 360 frames, 3 windows | 3 runs of 120, stable |
-| RSS | ~23–25 MB (CIPHER software path) | ~269 MB (driver floor) | ~40.4 MB |
-| Wall for 120 frames | vsync-paced (compositor) | vsync-paced | ~111–114 ms |
+| Metric | cipher software-shm | cipher vulkan-gpu-ui | Qt6 offscreen | GTK cairo |
+| --- | --- | --- | --- | --- |
+| CPU ms per frame (declaration+layout+emit / full CPU repaint) | **0.030–0.032** | **0.031–0.035** | **0.925–0.950** | **1.086–1.197** |
+| Run | 360 frames, 3 windows of 120 | 360 frames, 3 windows | 3 runs of 120 | 3 runs of 120 |
+| RSS | ~23–25 MB | ~269 MB (driver floor) | **~40.4 MB** | **~18.6 MB** |
+| Wall for 120 frames | vsync-paced | vsync-paced | ~111–114 ms | ~130–144 ms |
+
+GTK note: `bench_gtk_cairo` draws the identical scene (5 labels + 40 buttons
++ 10 checkboxes + 10 sliders, same strings/positions) with cairo+pango —
+GTK4's software-renderer primitives — bypassing the GTK widget tree, whose
+snapshot path segfaults on this box (documented). So GTK's number is a
+LOWER BOUND (no widget-tree layout/repaint overhead), yet still ~29x slower
+per frame than cipher's full software path. RSS favors GTK for this
+benchmark (no toolkit overhead, pure cairo context ~18.6 MB).
 
 Caveats, stated plainly so nobody can over-read this:
 - Qt's number is the full `QWidget::render()` repaint (Fusion style painting
