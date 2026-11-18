@@ -121,7 +121,7 @@ linking libc/libm only, vs GTK4's 113 and Qt6's 45 runtime mappings.
   breakdown. Debug vs release differ little (1037 vs ~1050 ms).
 - **Peak RSS ≈ GTK4** (~290–325 MB). This is the NVIDIA Vulkan driver's
   allocation floor on this machine, not application memory: cipher-hello,
-  cipherterm and nocturne all sit at ~250–325 MB, i.e. ~20 MB above the floor
+  janus and nocturne all sit at ~250–325 MB, i.e. ~20 MB above the floor
   (10k-line slab grid + 64k quad buffer + text atlas + s16 audio copies).
   Qt6's ~49 MB reflects a different (lighter) driver path on this box; GTK4 on
   the same Vulkan path pays the same ~300 MB. We are not yet "leaner than Qt"

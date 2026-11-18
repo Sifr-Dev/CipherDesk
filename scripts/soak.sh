@@ -13,7 +13,7 @@ LIB=/tmp/opencode/nocturne-lib
 
 echo "frames=$FRAMES  native=$NAT_BIN  apps=$APP_BIN"
 [ -x "$NAT_BIN/cipher-hello" ] || { echo "missing $NAT_BIN/cipher-hello (build sifr-native)"; exit 1; }
-[ -x "$APP_BIN/cipherterm" ] || { echo "missing $APP_BIN/cipherterm (build sifr-apps)"; exit 1; }
+[ -x "$APP_BIN/janus" ] || { echo "missing $APP_BIN/janus (build sifr-apps)"; exit 1; }
 [ -x "$APP_BIN/nocturne" ] || { echo "missing $APP_BIN/nocturne (build sifr-apps)"; exit 1; }
 
 mkdir -p "$LIB"

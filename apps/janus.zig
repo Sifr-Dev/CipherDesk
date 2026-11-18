@@ -1,8 +1,12 @@
-//! cipherterm — the Cipher framework's own GPU terminal (not an xterm fork).
+//! janus — the Janus — the Cipher framework's GPU-native terminal (not an xterm fork).
 //!
-//!   cipherterm [pane] [--socket PATH]
+//!   janus [pane] [--socket PATH]
 //!
-//! Attaches to panes over the rex unix socket (auto-spawned if absent),
+//! Janus is the flagship terminal built on the Cipher framework. Panes are
+//! server-backed today (the rex daemon spawns and owns them); the multiplexer
+//! is being folded in-process so Janus becomes fully self-contained.
+//!
+//! Attaches to panes over the internal rex unix socket (auto-spawned if absent),
 //! mirrors each pane's VT stream in local Grids, and renders per vsync as
 //! GPU quads through the framework's extra_quads hook. Framework-afforded
 //! features no standalone terminal gets for free:
@@ -299,7 +303,7 @@ pub const App = struct {
                         if (json.base64Decode(self.alloc, b64)) |raw| {
                             defer self.alloc.free(raw);
                             self.parser.feed(&self.grid, raw) catch {};
-                            std.debug.print("CIPHERTERM_ATTACH_OK pane={d} cols={d} rows={d} replay_bytes={d}\n", .{ self.pane, cols, rows, raw.len });
+                            std.debug.print("JANUS_ATTACH_OK pane={d} cols={d} rows={d} replay_bytes={d}\n", .{ self.pane, cols, rows, raw.len });
                         } else |_| {}
                     }
                 }
@@ -329,7 +333,7 @@ pub const App = struct {
                 const pid: u32 = if (v.get("pane")) |p| @as(u32, @intFromFloat(p.numOf() orelse 0)) else return;
                 if (pid == self.pane) {
                     self.pane_alive = false;
-                    std.debug.print("CIPHERTERM_PANE_EXIT pane={d}\n", .{pid});
+                    std.debug.print("JANUS_PANE_EXIT pane={d}\n", .{pid});
                 }
                 return;
             }
@@ -337,7 +341,7 @@ pub const App = struct {
         }
         // op replies
         if (v.get("error")) |e| {
-            if (e.strOf()) |msg| std.debug.print("cipherterm: server error: {s}\n", .{msg});
+            if (e.strOf()) |msg| std.debug.print("janus: server error: {s}\n", .{msg});
         }
         if (v.get("id")) |idv| {
             if (self.expect == .split) {
@@ -358,7 +362,7 @@ pub const App = struct {
                         }
                     }
                 }
-                std.debug.print("cipherterm: no alive panes left\n", .{});
+                std.debug.print("janus: no alive panes left\n", .{});
                 self.no_panes = true;
             }
         }
@@ -375,7 +379,7 @@ pub const App = struct {
             }
             const n: usize = @intCast(rc);
             if (n == 0) {
-                std.debug.print("cipherterm: server closed the connection\n", .{});
+                std.debug.print("janus: server closed the connection\n", .{});
                 break;
             }
             self.bytes_in += n;
@@ -735,7 +739,7 @@ pub const App = struct {
         self.win_frames += 1;
         self.win_ns += dt;
         if (self.win_frames >= 120) {
-            std.debug.print("CIPHERTERM_BENCH frames={d} avg_onframe_ms={d:.3} rss_kb={d} bytes_in={d}\n", .{ self.frames, @as(f64, @floatFromInt(self.win_ns)) / @as(f64, @floatFromInt(self.win_frames)) / 1e6, rssKb(), self.bytes_in });
+            std.debug.print("JANUS_BENCH frames={d} avg_onframe_ms={d:.3} rss_kb={d} bytes_in={d}\n", .{ self.frames, @as(f64, @floatFromInt(self.win_ns)) / @as(f64, @floatFromInt(self.win_frames)) / 1e6, rssKb(), self.bytes_in });
             self.win_frames = 0;
             self.win_ns = 0;
         }
@@ -831,7 +835,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             if (json.base64Decode(alloc, b64)) |raw| {
                 defer alloc.free(raw);
                 try app.parser.feed(&app.grid, raw);
-                std.debug.print("CIPHERTERM_ATTACH_OK pane={d} cols={d} rows={d} replay_bytes={d}\n", .{ pane, cols, rows, raw.len });
+                std.debug.print("JANUS_ATTACH_OK pane={d} cols={d} rows={d} replay_bytes={d}\n", .{ pane, cols, rows, raw.len });
             } else |_| {}
         }
     }
@@ -839,8 +843,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     defer alloc.free(app.quads);
 
     try runtime.runWith(App, &app, .{
-        .title = "cipherterm",
-        .app_id = "cipherterm",
+        .title = "janus",
+        .app_id = "janus",
         .font_path = pickMonoFont(),
         // Best-effort fallbacks (silently skipped if the font is absent):
         // DejaVu covers arrows/math/misc symbols the mono font lacks.
@@ -849,5 +853,5 @@ pub fn main(init: std.process.Init.Minimal) !void {
         .width = 1120,
         .height = 700,
     });
-    std.debug.print("CIPHERTERM_EXIT frames={d} total_onframe_ms={d:.1} rss_kb={d} bytes_in={d}\n", .{ app.frames, @as(f64, @floatFromInt(app.frame_ns)) / 1e6, rssKb(), app.bytes_in });
+    std.debug.print("JANUS_EXIT frames={d} total_onframe_ms={d:.1} rss_kb={d} bytes_in={d}\n", .{ app.frames, @as(f64, @floatFromInt(app.frame_ns)) / 1e6, rssKb(), app.bytes_in });
 }

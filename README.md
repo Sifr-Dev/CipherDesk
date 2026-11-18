@@ -18,12 +18,32 @@ only libc and dlopen()s what it needs at runtime.
 
 | App | What it is |
 | --- | --- |
-| `rex` | Multiplexer server + scriptable CLI (JSON-lines over a unix socket): spawn/split/run/capture/attach, scrollback, 0600 socket, auto-spawn |
-| `cipherterm` | GPU terminal client — fork in spirit, not in code. Tab bar of panes, status bar with live RSS/throughput, runtime themes (void/paper/ember), Ctrl+Tab pane cycling, scrollback, drag-select clipboard, bracketed paste, file-drop→pane. Renders via the framework's `extra_quads` hook |
+| `janus` | The flagship terminal — GPU-native, panes, tabs, themes (void/paper/ember), status bar with live RSS/throughput. Multiplexing is a built-in feature (panes), not a second app. Standalone: needs only the system Wayland loader and Vulkan (dlopen), nothing else |
+| `rex` | Multiplexer *engine* (framework-level): JSON-lines over a unix socket — spawn/split/run/capture/attach, scrollback, 0600 socket, auto-spawn. Being folded in-process so Janus is fully self-contained; today Janus attaches to it |
 | `nocturne` | Offline music player — from-zero FLAC decoder (bit-exact vs flac/ffmpeg), synced lyrics (LRC + embedded VORBIS LYRICS), M3U playlists, sample-exact crossfade, PulseAudio-simple output via dlopen; live: exit 0, track auto-advance at track end; offline WAV exactly 5.000000 s |
 
 Build: `zig build` (requires the sibling `../sifr-native` checkout). Run:
-`zig build run-rex -- ls` / `zig build run-cipherterm` / `zig build run-nocturne -- arg`
+`zig build run-janus` / `zig build run-nocturne -- arg`
+
+## naming
+
+Janus replaces the earlier `cipherterm` name. `rex` was our multiplexer — the
+same name as the external terminal from the Ghostty team, which was a naming
+collision; Janus is the Ghostty-terminal competitor and rex stays as Janus's
+internal multiplexer engine until it is folded in-process.
+
+## Create your own app
+
+Any app you write gets the same treatment these four apps get: Vulkan on the
+GPU, zero dependencies bundled, one binary that needs nothing installed but
+the system Wayland loader (`libwayland-client`, present on every Wayland
+session). Copy this repo as a template: path-depend on the framework like we
+do (see `build.zig`), implement `onInit`/`onEvent`/`onFrame` on a struct,
+call `cipher.runtime.run(...)`. `apps/hello.zig` in the framework repo is the
+60-line canonical version of exactly that.
+
+Janus is the reference terminal implementation; nocturne the reference
+audio-heavy implementation; bench-hello the reference performance harness.
 
 ## benchmark
 

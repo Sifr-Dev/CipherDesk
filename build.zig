@@ -45,18 +45,18 @@ pub fn build(b: *std.Build) void {
     const run_rex = b.addRunArtifact(rex);
     b.step("run-rex", "Run the rex CLI (args after --)").dependOn(&run_rex.step);
 
-    // cipherterm — the GPU terminal client (tabbed panes, themes, status bar).
-    const ct_mod = b.createModule(.{
-        .root_source_file = b.path("apps/cipherterm.zig"),
+    // Janus — the Cipher GPU-native terminal (panes, themes, status bar).
+    const janus_mod = b.createModule(.{
+        .root_source_file = b.path("apps/janus.zig"),
         .target = target,
         .optimize = optimize,
     });
-    ct_mod.link_libc = true;
-    ct_mod.addImport("term", term_mod);
-    const ct = b.addExecutable(.{ .name = "cipherterm", .root_module = ct_mod });
-    b.installArtifact(ct);
-    const run_ct = b.addRunArtifact(ct);
-    b.step("run-cipherterm", "Run the cipherterm GPU terminal (args after --)").dependOn(&run_ct.step);
+    janus_mod.link_libc = true;
+    janus_mod.addImport("term", term_mod);
+    const janus = b.addExecutable(.{ .name = "janus", .root_module = janus_mod });
+    b.installArtifact(janus);
+    const run_janus = b.addRunArtifact(janus);
+    b.step("run-janus", "Run the Janus terminal (args after --)").dependOn(&run_janus.step);
 
     // nocturne — offline music player (FLAC, lyrics, crossfade, playlists).
     // bench-hello — heavy-scene runtime-performance benchmark (not shipped UI).
