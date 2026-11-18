@@ -7,6 +7,8 @@
 
 # sifr-apps
 
+[![ci](https://github.com/mohamedsalahi/sifr-apps/actions/workflows/ci.yml/badge.svg)](https://github.com/mohamedsalahi/sifr-apps/actions/workflows/ci.yml)
+
 Applications built on the **Cipher** framework (in `../sifr-native`) the way an
 app is built on Qt or GTK — except Cipher has no toolkit baggage: the GPU
 (Wayland + Vulkan), the flexbox UI, the text engine, the widgets, the terminal
