@@ -392,7 +392,7 @@ pub const App = struct {
 
     fn cellAt(self: *App, rt: *runtime.Runtime, x: f32, y: f32) [2]i32 {
         if (rt.atlas == null) return .{ 0, 0 };
-        const atlas = &rt.atlas.?;
+        const atlas = rt.atlas.?;
         const cm = render.cellMetrics(atlas);
         var cx = @as(i32, @intFromFloat(x / cm.w));
         var cy = @as(i32, @intFromFloat((y - 38) / cm.h));
@@ -510,7 +510,7 @@ pub const App = struct {
     pub fn onInit(self: *App, rt: *runtime.Runtime) !void {
         // Fit the pane to the real window size (server grid follows).
         if (rt.atlas == null) return;
-        const atlas = &rt.atlas.?;
+        const atlas = rt.atlas.?;
         const cm = render.cellMetrics(atlas);
         const cols = @max(@as(u32, 10), @as(u32, @intFromFloat(@as(f32, @floatFromInt(rt.width)) / cm.w)));
         const rows = @max(@as(u32, 4), @as(u32, @intFromFloat(@as(f32, @floatFromInt(rt.height)) / cm.h)));
@@ -558,7 +558,7 @@ pub const App = struct {
             },
             .resize => |r| {
                 if (rt.atlas == null) return;
-                const atlas = &rt.atlas.?;
+                const atlas = rt.atlas.?;
                 const cm = render.cellMetrics(atlas);
                 const cols = @max(@as(u32, 10), @as(u32, @intFromFloat(@as(f32, @floatFromInt(r.w)) / cm.w)));
                 const rows = @max(@as(u32, 4), @as(u32, @intFromFloat(@as(f32, @floatFromInt(r.h)) / cm.h)));
@@ -615,7 +615,7 @@ pub const App = struct {
             self.noteFrame(t0);
             return;
         }
-        const atlas = &rt.atlas.?;
+        const atlas = rt.atlas.?;
         const cm = render.cellMetrics(atlas);
         const theme = render.THEMES[self.theme_idx % render.THEMES.len];
         const bar_h: f32 = 34;
