@@ -54,6 +54,17 @@ pub fn build(b: *std.Build) void {
     });
     audio_mod.link_libc = true;
 
+    // The shared multiplexer wire contract (apps/mux/protocol.zig). Both the
+    // engine CLI and the unit tests use this one module, so the protocol
+    // cannot drift between them.
+    const mux_mod = b.createModule(.{
+        .root_source_file = b.path("apps/mux/protocol.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    mux_mod.link_libc = true;
+    mux_mod.addImport("term", term_mod);
+
     // rex — the multiplexer server + scriptable CLI (JSON-lines over a unix socket).
     const rex_mod = b.createModule(.{
         .root_source_file = b.path("apps/rex.zig"),
@@ -104,4 +115,18 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(noc);
     const run_noc = b.addRunArtifact(noc);
     b.step("run-nocturne", "Run the nocturne music player (args after --)").dependOn(&run_noc.step);
+
+    // ---- tests -------------------------------------------------------
+    //
+    // `test` runs pure unit tests for the multiplexer wire contract: no
+    // display, no GPU, no sockets, no process spawn, so it is safe to run
+    // anywhere. It does not run the GUI apps.
+    const test_step = b.step("test", "Run unit tests (multiplexer protocol contract)");
+
+    const protocol_tests = b.addTest(.{
+        .name = "mux-protocol-test",
+        .root_module = mux_mod,
+    });
+    const run_protocol_tests = b.addRunArtifact(protocol_tests);
+    test_step.dependOn(&run_protocol_tests.step);
 }
