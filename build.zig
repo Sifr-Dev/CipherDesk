@@ -2,31 +2,53 @@
 // dependency. The framework sources are not copied here; its modules are
 // referenced by path from the sibling sifr-native checkout, exactly like an
 // app linking against a framework library.
+//
+// Framework location: defaults to ../sifr-native (the documented layout) and
+// can be pointed at any verified framework checkout:
+//
+//   zig build -Dcipher-root=/path/to/cipher-checkout
+//
+// That keeps this repository independent of one developer's directory
+// layout and lets CI test this repo against a pinned framework candidate
+// without moving or copying framework sources into it.
 const std = @import("std");
 
-const FW = "../sifr-native/src/"; // framework checkout (path dependency)
+const default_fw_root = "../sifr-native";
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Framework modules, imported by path from the sifr-native package.
+    const fw_root = b.option(
+        []const u8,
+        "cipher-root",
+        "Path to a Cipher framework checkout (default: ../sifr-native)",
+    ) orelse default_fw_root;
+    // Absolute paths are accepted verbatim; relative ones stay relative to
+    // the repository root so `zig build` works from the checkout directory.
+    const fw_src = struct {
+        fn file(root: []const u8, bld: *std.Build, name: []const u8) []const u8 {
+            return bld.fmt("{s}/src/{s}", .{ root, name });
+        }
+    }.file;
+
+    // Framework modules, imported by path from the framework checkout.
     const cipher_mod = b.createModule(.{
-        .root_source_file = .{ .cwd_relative = FW ++ "cipher.zig" },
+        .root_source_file = .{ .cwd_relative = fw_src(fw_root, b, "cipher.zig") },
         .target = target,
         .optimize = optimize,
     });
     cipher_mod.link_libc = true;
 
     const term_mod = b.createModule(.{
-        .root_source_file = .{ .cwd_relative = FW ++ "term_api.zig" },
+        .root_source_file = .{ .cwd_relative = fw_src(fw_root, b, "term_api.zig") },
         .target = target,
         .optimize = optimize,
     });
     term_mod.link_libc = true;
 
     const audio_mod = b.createModule(.{
-        .root_source_file = .{ .cwd_relative = FW ++ "audio_api.zig" },
+        .root_source_file = .{ .cwd_relative = fw_src(fw_root, b, "audio_api.zig") },
         .target = target,
         .optimize = optimize,
     });
