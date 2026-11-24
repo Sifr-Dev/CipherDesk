@@ -73,6 +73,7 @@ pub fn build(b: *std.Build) void {
     });
     rex_mod.link_libc = true;
     rex_mod.addImport("term", term_mod);
+    rex_mod.addImport("mux", mux_mod);
     const rex = b.addExecutable(.{ .name = "rex", .root_module = rex_mod });
     b.installArtifact(rex);
     const run_rex = b.addRunArtifact(rex);
