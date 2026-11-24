@@ -130,4 +130,25 @@ pub fn build(b: *std.Build) void {
     });
     const run_protocol_tests = b.addRunArtifact(protocol_tests);
     test_step.dependOn(&run_protocol_tests.step);
+
+    const e2e_step = b.step("test-e2e", "Run the headless multiplexer product test (real rex engine)");
+
+    const e2e_options = b.addOptions();
+    e2e_options.addOptionPath("rex_exe", rex.getEmittedBin());
+    const e2e_mod = b.createModule(.{
+        .root_source_file = b.path("apps/mux/e2e_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    e2e_mod.link_libc = true;
+    e2e_mod.addImport("term", term_mod);
+    e2e_mod.addImport("build_options", e2e_options.createModule());
+    const e2e_tests = b.addTest(.{
+        .name = "mux-e2e-test",
+        .root_module = e2e_mod,
+    });
+    const run_e2e_tests = b.addRunArtifact(e2e_tests);
+    e2e_step.dependOn(&run_e2e_tests.step);
+    // The test spawns this exact artifact, so build it first.
+    e2e_tests.step.dependOn(&rex.step);
 }
