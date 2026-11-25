@@ -53,8 +53,9 @@ finds nothing). The built binaries agree: `strings zig-out/bin/janus` contains
 the comparison is not a build-mode artifact).
 
 So the two products are separable — but the separation lives in PR #1, not on
-`main`. Until that work is merged, `janus` and `rex` must ship and version
-together.
+`main`. Until that work is merged, `janus` and the legacy `rex` executable must ship
+and version together. Nebula's independent product repository is still a
+planned extraction, not an existing repository.
 
 ### 2. `rex` is both an engine and a CLI
 
@@ -77,12 +78,12 @@ that cannot play.
 
 ## Naming
 
-`rex` is our multiplexer engine's current name. The same name is used by an
-unrelated external terminal project, and it has been read as the product name
-for this repository's multiplexer. The multiplexer product needs its own name
-chosen deliberately; a search-and-replace is not a decision, and no rename is
-made here. `README.md` still describes `rex` and should be corrected when the
-product name is settled.
+The multiplexer product is **Nebula**. **Rex** is an unrelated external
+multiplexer and a competitor to evaluate, not a Cipher application, internal
+project name, or implementation to copy. `rex` remains in the current source
+as a legacy executable identifier; it is not the product name. Migration to
+Nebula needs an explicit compatibility plan for executable names, sockets,
+configuration, and users of the existing CLI, not a blanket text replacement.
 
 ## Rules that keep this from drifting
 

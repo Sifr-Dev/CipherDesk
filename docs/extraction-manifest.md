@@ -25,10 +25,12 @@ spawns its PTY in-process, so there is no engine process, no socket and no
 - **Then:** `janus` depends on the framework's `term` module only, and can be
   moved with its own `build.zig` and a test that renders a frame offscreen.
 
-## Step 2 — give the multiplexer a name and an owner for its server side
+## Step 2 — move Nebula into its own product repository
 
-**Blocks:** any separate multiplexer product; also blocks the README being
-truthful about names.
+**Blocks:** the independent Nebula multiplexer; also blocks the README being
+truthful about names. Nebula is the product name. Rex is an external
+competitor, not a SIFR project. The existing `rex` executable and protocol are
+legacy compatibility details that need a deliberate migration.
 
 `apps/rex.zig` is a CLI whose `serve` subcommand runs an engine implemented in
 the framework (`src/term/server.zig`, 984 lines). Extracting only the CLI
