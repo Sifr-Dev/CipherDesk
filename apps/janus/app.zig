@@ -41,6 +41,11 @@ pub const App = struct {
     /// Shell for the first pane; $SHELL when null.
     startup_shell: ?[]const u8 = null,
 
+    pub fn deinit(self: *App) void {
+        for (self.panes.items) |*p| p.deinit();
+        self.panes.deinit(self.alloc);
+    }
+
     pub fn focusGrid(self: *App) ?*grid_mod.Grid {
         if (self.panes.items.len == 0) return null;
         return &self.panes.items[self.focused].grid;
@@ -77,7 +82,7 @@ pub const App = struct {
         p.deinit(); // SIGHUP to the foreground process group
         if (self.focused > idx) {
             self.focused -= 1;
-        } else if (self.focused >= self.panes.items.len) {
+        } else if (self.panes.items.len == 0 or self.focused >= self.panes.items.len) {
             self.focused = if (self.panes.items.len == 0) 0 else self.panes.items.len - 1;
         }
         std.debug.print("JANUS_PANE_CLOSED left={d}\n", .{self.panes.items.len});

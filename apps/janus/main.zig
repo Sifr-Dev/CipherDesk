@@ -45,6 +45,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         .quads = try alloc.alloc(gpu_text.Quad, app_mod.MAX_QUADS),
         .startup_shell = shell,
     };
+    defer app.deinit();
     defer alloc.free(app.quads);
 
     try runtime.runWith(App, &app, .{
