@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     cipher_mod.link_libc = true;
+    cipher_mod.addAnonymousImport("resources", .{ .root_source_file = .{ .cwd_relative = b.fmt("{s}/resources.zig", .{fw_root}) } });
 
     const term_mod = b.createModule(.{
         .root_source_file = .{ .cwd_relative = fw_src(fw_root, b, "term_api.zig") },
@@ -46,6 +47,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     term_mod.link_libc = true;
+    term_mod.addAnonymousImport("resources", .{ .root_source_file = .{ .cwd_relative = b.fmt("{s}/resources.zig", .{fw_root}) } });
 
     const audio_mod = b.createModule(.{
         .root_source_file = .{ .cwd_relative = fw_src(fw_root, b, "audio_api.zig") },
@@ -53,6 +55,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     audio_mod.link_libc = true;
+    audio_mod.addAnonymousImport("resources", .{ .root_source_file = .{ .cwd_relative = b.fmt("{s}/resources.zig", .{fw_root}) } });
 
     // The shared multiplexer wire contract (apps/mux/protocol.zig). Both the
     // engine CLI and the unit tests use this one module, so the protocol
@@ -81,7 +84,7 @@ pub fn build(b: *std.Build) void {
 
     // Janus — the Cipher GPU-native terminal (panes, themes, status bar).
     const janus_mod = b.createModule(.{
-        .root_source_file = b.path("apps/janus.zig"),
+        .root_source_file = b.path("apps/janus/main.zig"),
         .target = target,
         .optimize = optimize,
     });
