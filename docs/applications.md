@@ -70,9 +70,10 @@ anything without the framework, which is where the server code already is.
 ### 3. `nocturne`'s audio stack is framework code
 
 `nocturne` imports `audio` (FLAC decoder, LRC parser, WAV reader, PulseAudio
-binding, playlist, player) from the framework, 1306 lines in
-`src/audio/`. It contains almost no decoder logic of its own. Moving the app
-without moving or depending on that module yields a player that cannot play.
+binding, playlist, player) from the framework: 1146 lines in `src/audio/`,
+plus 160 lines of framework tests. It contains almost no decoder logic of its
+own. Moving the app without moving or depending on that module yields a player
+that cannot play.
 
 ## Naming
 

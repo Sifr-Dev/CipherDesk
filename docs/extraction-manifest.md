@@ -48,7 +48,7 @@ the engine already lives.
 
 **Blocks:** a `nocturne` repository that can play a file.
 
-`nocturne` imports 1306 lines of framework audio code (`src/audio/flac.zig`,
+`nocturne` imports 1146 lines of framework audio code (`src/audio/flac.zig`,
 `lrc.zig`, `wav.zig`, `pulse.zig`, `playlist.zig`, `player.zig`) and contains
 almost no decoding of its own.
 
