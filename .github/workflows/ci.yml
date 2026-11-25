@@ -39,3 +39,14 @@ jobs:
       - name: Build apps (ReleaseSafe, stripped)
         working-directory: sifr-apps
         run: zig build -Doptimize=ReleaseSafe
+
+      # The multiplexer wire contract. No display, GPU or socket needed.
+      - name: Test multiplexer protocol
+        working-directory: sifr-apps
+        run: zig build test --summary all
+
+      # Drives the built CLI against a real engine over a private socket.
+      # Still headless: no Wayland compositor, no Vulkan device.
+      - name: Test multiplexer end to end
+        working-directory: sifr-apps
+        run: zig build test-e2e --summary all

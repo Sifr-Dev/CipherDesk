@@ -14,6 +14,7 @@
 //! If the socket does not exist, the server is auto-spawned (fork+exec self).
 const std = @import("std");
 const term = @import("term");
+const mux = @import("mux");
 const json = term.json;
 const server_mod = term.server;
 const pty_mod = term.pty;
@@ -124,6 +125,15 @@ fn rpc(allocator: std.mem.Allocator, path: []const u8, req: []const u8) ![]u8 {
     return try readLine(fd, allocator, 16 * 1024 * 1024);
 }
 
+/// Send one structured request and read one reply line. Request bytes are
+/// produced by the shared contract module so both products speak one dialect.
+fn rpcRequest(allocator: std.mem.Allocator, path: []const u8, req: mux.Request) ![]u8 {
+    var buf = std.ArrayList(u8).empty;
+    defer buf.deinit(allocator);
+    try mux.writeRequest(allocator, &buf, req);
+    return rpc(allocator, path, buf.items);
+}
+
 fn appendPad(out: *std.ArrayList(u8), allocator: std.mem.Allocator, depth: usize) !void {
     var k: usize = 0;
     while (k < depth) : (k += 1) try out.appendSlice(allocator, "  ");
@@ -204,16 +214,13 @@ pub fn main(init: std.process.Init.Minimal) !void {
         return error.Usage;
     }
     const cmd = args[1];
+    // Socket path comes from the shared contract module, so the engine and
+    // the terminal cannot disagree about where the control socket lives.
     var socket_buf: [256]u8 = undefined;
-    const socket_path: []const u8 = blk: {
-        if (std.c.getenv("CIPHER_REX_SOCK")) |p| break :blk std.mem.span(p);
-        if (std.c.getenv("XDG_RUNTIME_DIR")) |d| {
-            const dir = std.mem.span(d);
-            const s = try std.fmt.bufPrint(&socket_buf, "{s}/cipher-rex.sock", .{dir});
-            break :blk socket_buf[0..s.len];
-        }
-        break :blk "/run/user/1000/cipher-rex.sock";
-    };
+    const env_sock: ?[]const u8 = if (std.c.getenv(mux.socket_env)) |p| std.mem.span(p) else null;
+    const env_runtime: ?[]const u8 = if (std.c.getenv("XDG_RUNTIME_DIR")) |d| std.mem.span(d) else null;
+    const resolved = mux.socketPath(env_sock, env_runtime, &socket_buf);
+    const socket_path: []const u8 = if (resolved.len > 0) resolved else mux.fallback_socket;
     var i: usize = 2;
     var sock_override: ?[]const u8 = null;
     while (i + 1 < args.len and std.mem.eql(u8, args[i], "--socket")) {
@@ -231,7 +238,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     if (std.mem.eql(u8, cmd, "ls")) {
-        const line = try rpc(allocator, sock, "{\"op\":\"ls\"}");
+        const line = try rpcRequest(allocator, sock, .ls);
         defer allocator.free(line);
         try printJson(allocator, line);
         return;
@@ -267,19 +274,19 @@ pub fn main(init: std.process.Init.Minimal) !void {
         var req = std.ArrayList(u8).empty;
         defer req.deinit(allocator);
         if (is_split) {
-            var pb: [16]u8 = undefined;
-            const pbs = try std.fmt.bufPrint(&pb, "{d}", .{pane.?});
-            try req.print(allocator, "{{\"op\":\"split\",\"pane\":{s},\"cols\":{d},\"rows\":{d},\"cmd\":[", .{ pbs, cols, rows });
+            try mux.writeRequest(allocator, &req, .{ .split = .{
+                .pane = pane.?,
+                .cols = cols,
+                .rows = rows,
+                .cmd = cmd_args.items,
+            } });
         } else {
-            try req.print(allocator, "{{\"op\":\"spawn\",\"cols\":{d},\"rows\":{d},\"cmd\":[", .{ cols, rows });
+            try mux.writeRequest(allocator, &req, .{ .spawn = .{
+                .cols = cols,
+                .rows = rows,
+                .cmd = cmd_args.items,
+            } });
         }
-        for (cmd_args.items, 0..) |ca, ci| {
-            if (ci > 0) try req.append(allocator, ',');
-            const js = try json.writeValue(allocator, .{ .str = ca });
-            defer allocator.free(js);
-            try req.appendSlice(allocator, js);
-        }
-        try req.appendSlice(allocator, "]}");
         const line = try rpc(allocator, sock, req.items);
         defer allocator.free(line);
         try printJson(allocator, line);
@@ -292,11 +299,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         const text = args[i + 1];
         var req = std.ArrayList(u8).empty;
         defer req.deinit(allocator);
-        try req.print(allocator, "{{\"op\":\"send\",\"pane\":{d},\"data\":", .{pane});
-        const js = try json.writeValue(allocator, .{ .str = text });
-        defer allocator.free(js);
-        try req.appendSlice(allocator, js);
-        try req.appendSlice(allocator, "}");
+        try mux.writeRequest(allocator, &req, .{ .send = .{ .pane = pane, .data = text } });
         const line = try rpc(allocator, sock, req.items);
         defer allocator.free(line);
         try printJson(allocator, line);
@@ -318,9 +321,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
         }
         var req = std.ArrayList(u8).empty;
         defer req.deinit(allocator);
-        try req.print(allocator, "{{\"op\":\"capture\",\"pane\":{d},\"scrollback\":{s}", .{ pane, if (scrollback) "true" else "false" });
-        if (lines) |n| try req.print(allocator, ",\"lines\":{d}", .{n});
-        try req.appendSlice(allocator, "}");
+        try mux.writeRequest(allocator, &req, .{ .capture = .{
+            .pane = pane,
+            .scrollback = scrollback,
+            .lines = lines,
+        } });
         const line = try rpc(allocator, sock, req.items);
         defer allocator.free(line);
         const v = json.Parser.parse(allocator, line) catch {
@@ -355,11 +360,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
         }
         var req = std.ArrayList(u8).empty;
         defer req.deinit(allocator);
-        try req.print(allocator, "{{\"op\":\"run\",\"pane\":{d},\"wait\":{s},\"cmd\":", .{ pane, if (wait) "true" else "false" });
-        const js = try json.writeValue(allocator, .{ .str = cmd_str.items });
-        defer allocator.free(js);
-        try req.appendSlice(allocator, js);
-        try req.appendSlice(allocator, "}");
+        try mux.writeRequest(allocator, &req, .{ .run = .{
+            .pane = pane,
+            .cmd = cmd_str.items,
+            .wait = wait,
+        } });
         const line = try rpc(allocator, sock, req.items);
         defer allocator.free(line);
         if (wait) {
@@ -382,9 +387,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         const pane = try std.fmt.parseInt(u32, args[i], 10);
         const cols = try std.fmt.parseInt(u32, args[i + 1], 10);
         const rows = try std.fmt.parseInt(u32, args[i + 2], 10);
-        var req: [128]u8 = undefined;
-        const r = try std.fmt.bufPrint(&req, "{{\"op\":\"resize\",\"pane\":{d},\"cols\":{d},\"rows\":{d}}}", .{ pane, cols, rows });
-        const line = try rpc(allocator, sock, r);
+        const line = try rpcRequest(allocator, sock, .{ .resize = .{ .pane = pane, .cols = cols, .rows = rows } });
         defer allocator.free(line);
         try printJson(allocator, line);
         return;
@@ -393,9 +396,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     if (std.mem.eql(u8, cmd, "close")) {
         if (i >= args.len) return error.Usage;
         const pane = try std.fmt.parseInt(u32, args[i], 10);
-        var req: [64]u8 = undefined;
-        const r = try std.fmt.bufPrint(&req, "{{\"op\":\"close\",\"pane\":{d}}}", .{pane});
-        const line = try rpc(allocator, sock, r);
+        const line = try rpcRequest(allocator, sock, .{ .close = pane });
         defer allocator.free(line);
         try printJson(allocator, line);
         return;
@@ -407,9 +408,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
         try ensureServer(sock);
         const fd = try connect(sock);
         defer _ = std.os.linux.close(fd);
-        var req: [64]u8 = undefined;
-        const r = try std.fmt.bufPrint(&req, "{{\"op\":\"attach\",\"pane\":{d}}}", .{pane});
-        try writeAll(fd, r);
+        var req = std.ArrayList(u8).empty;
+        defer req.deinit(allocator);
+        try mux.writeRequest(allocator, &req, .{ .attach = pane });
+        try writeAll(fd, req.items);
         try writeAll(fd, "\n");
         var pending = std.ArrayList(u8).empty;
         defer pending.deinit(allocator);
