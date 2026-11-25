@@ -18,24 +18,6 @@ pub fn rssKb() u64 {
     return std.fmt.parseInt(u64, rest[start..i], 10) catch 0;
 }
 
-/// Best-effort monospace font resolution.
-pub fn pickMonoFont() []const u8 {
-    const candidates = [_][]const u8{
-        "/usr/share/fonts/TTF/JetBrainsMonoNerdFontMono-Regular.ttf",
-        "/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf",
-        "/usr/share/fonts/truetype/jetbrains-mono/JetBrainsMono-Regular.ttf",
-        "/usr/share/fonts/liberation/LiberationMono-Regular.ttf",
-        runtime.DEFAULT_FONT,
-    };
-    for (candidates) |c| {
-        if (std.posix.openat(std.posix.AT.FDCWD, c, .{ .ACCMODE = .RDONLY }, 0)) |fd| {
-            _ = std.c.close(fd);
-            return c;
-        } else |_| {}
-    }
-    return runtime.DEFAULT_FONT;
-}
-
 /// $SHELL when set, else /bin/sh.
 pub fn defaultShell() []const u8 {
     if (std.c.getenv("SHELL")) |p| {

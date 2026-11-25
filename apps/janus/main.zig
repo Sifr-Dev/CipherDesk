@@ -50,8 +50,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     try runtime.runWith(App, &app, .{
         .title = "janus",
         .app_id = "janus",
-        .font_path = util.pickMonoFont(),
-        .fallback_font_paths = &.{ "/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuMathTeXGyre.ttf" },
+        .font_data = term.runtime.default_font_data,
+        .fallback_font_paths = &.{},
         .ui_px = 18,
         .width = 1120,
         .height = 700,
